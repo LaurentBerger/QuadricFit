@@ -187,6 +187,65 @@ Ptr<LMSolver> createLMSolver(const Ptr<LMSolver::Callback>& cb, int maxIters)
 }
 
 
+class HomographyRefineCallback : public LMSolver::Callback
+{
+public:
+    HomographyRefineCallback(InputArray _src, InputArray _dst)
+    {
+        src = _src.getMat();
+        dst = _dst.getMat();
+    }
+
+    bool compute(InputArray _param, OutputArray _err, OutputArray _Jac) const
+    {
+        int i, count = src.checkVector(2);
+        Mat param = _param.getMat();
+        _err.create(count*2, 1, CV_64F);
+        Mat err = _err.getMat(), J;
+        if( _Jac.needed())
+        {
+            _Jac.create(count*2, param.rows, CV_64F);
+            J = _Jac.getMat();
+            CV_Assert( J.isContinuous() && J.cols == 8 );
+        }
+
+        const Point2f* M = src.ptr<Point2f>();
+        const Point2f* m = dst.ptr<Point2f>();
+        const double* h = param.ptr<double>();
+        double* errptr = err.ptr<double>();
+        double* Jptr = J.data ? J.ptr<double>() : 0;
+
+        for( i = 0; i < count; i++ )
+        {
+            double Mx = M[i].x, My = M[i].y;
+            double ww = h[6]*Mx + h[7]*My + 1.;
+            ww = fabs(ww) > DBL_EPSILON ? 1./ww : 0;
+            double xi = (h[0]*Mx + h[1]*My + h[2])*ww;
+            double yi = (h[3]*Mx + h[4]*My + h[5])*ww;
+            errptr[i*2] = xi - m[i].x;
+            errptr[i*2+1] = yi - m[i].y;
+
+            if( Jptr )
+            {
+                Jptr[0] = Mx*ww; Jptr[1] = My*ww; Jptr[2] = ww;
+                Jptr[3] = Jptr[4] = Jptr[5] = 0.;
+                Jptr[6] = -Mx*ww*xi; Jptr[7] = -My*ww*xi;
+                Jptr[8] = Jptr[9] = Jptr[10] = 0.;
+                Jptr[11] = Mx*ww; Jptr[12] = My*ww; Jptr[13] = ww;
+                Jptr[14] = -Mx*ww*yi; Jptr[15] = -My*ww*yi;
+
+                Jptr += 16;
+            }
+        }
+
+        return true;
+    }
+
+    Mat src, dst;
+};
+
+
+
 class QuadriqueLight : public LMSolver::Callback
 {
 public:

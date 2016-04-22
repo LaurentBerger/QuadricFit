@@ -227,15 +227,52 @@ char mrqmin(TREEL *x, TREEL *y, TREEL *sig, long ndata, TREEL *a,
 
 
 
-
-
-
-
-
-
-
-
 vector<double> AjusteQuadrique(vector<double> xMarche,vector <double> yMarche,vector<double> paramIni)
+{
+	// Bruit sur les données
+	double	*sig = new double[yMarche.size()];
+	// Dérivée de f(x,y) par rapport aux paramètres
+	double	*dyda;
+	// Niveau rouge,vert et bleu des pixels dans les marches
+	double	*yMarcheR, *yMarcheV, *yMarcheB;
+	long	itst;
+	long 	ma=6, mfit=6;
+	double	alamda = -1, chisq, oldchisq;
+	// Matrice de covariance et de de gain voir Numerical Recipes
+	double	**covar=new double*[ma], **alpha= new double*[ma];
+	int	i, j;
+	for (int i = 0; i < mfit; i++)
+	{
+		covar[i] = new double[mfit];
+		alpha[i] = new double[mfit];
+	}
+	int nbPixelsFit = yMarche.size();
+	vector<double> q;
+	q.resize(paramIni.size());
+	q = paramIni;
+		// Minimisation
+	alamda = -1;
+	vector<long> lista(6);
+	for (int i = 0; i<mfit; i++)
+		lista[i] = i;
+	int statusMin = mrqmin(xMarche.data(), yMarche.data(), sig, nbPixelsFit, q.data(),  ma, lista.data(), mfit, covar, alpha,
+		&chisq, &Derive, &alamda);
+	itst = 0;
+	int nbIteration = 10;
+	while (itst<nbIteration)
+	{
+		oldchisq = chisq;
+		mrqmin(xMarche.data(), yMarche.data(), sig, nbPixelsFit, q.data(),  ma, lista.data(), mfit, covar, alpha,
+			&chisq, &Derive, &alamda);
+		if (chisq>oldchisq)
+			itst = 0;
+		else if (fabs(oldchisq - chisq)<FLT_EPSILON)
+			itst++;
+	}
+	return q;
+}
+
+vector<double> AjusteHomography(vector<double> xMarche,vector <double> yMarche,vector<double> paramIni)
 {
 	// Bruit sur les données
 	double	*sig = new double[yMarche.size()];
