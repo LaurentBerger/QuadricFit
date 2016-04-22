@@ -365,10 +365,10 @@ int main(int argc, char* argv[])
 
 	paramIni[0] = 0;
 	paramIni[1] = 0;
-	paramIni[2] = pReel[2]*0.95;
-	paramIni[3] = pReel[3]*0.95;
-	paramIni[4] = pReel[4]*0.95;
-	paramIni[5] = pReel[5]*0.95;
+	paramIni[2] = pReel[2]*0.98;
+	paramIni[3] = pReel[3]*0.98;
+	paramIni[4] = pReel[4]*0.98;
+	paramIni[5] = pReel[5]*0.98;
 	cout << "Initial guess (LMSolver) :\n";
 	for (int i = 0; i < paramIni.size(); i++)
 		cout << paramIni[i] << "\t";
