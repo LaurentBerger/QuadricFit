@@ -25,6 +25,48 @@ void Derive(double *x, double q[], double *y, double *dyda, int na)
 	double xx = x[0], yy = x[1];
 	int indexRegion = int(x[2]);
 
+    if (na==6)
+	    {
+	    double xx=x[0],yy=x[1];
+	    int indexRegion=int(x[2]);
+
+	    y[0] = q[0] * xx*xx + q[1] * yy*yy + q[2] * xx*yy + q[3] * xx + q[4] * yy + q[5];
+
+
+	    dyda[0] = xx*xx;
+	    dyda[1] = yy*yy;
+	    dyda[2] = xx*yy;
+	    dyda[3] = xx;
+	    dyda[4] = yy;
+	    dyda[5] = 1;
+	    } 
+    else	
+    // Fin de modif
+	    {
+	    double xx=x[0],yy=x[1];
+	    int indexRegion=int(x[2]);
+
+	    y[0] = q[0]*xx*xx+q[1]*yy*yy+q[2]*xx*yy+q[3]*xx+q[4]*yy+q[5];
+
+	    dyda[0] = xx*xx*q[6+indexRegion];
+	    dyda[1] = yy*yy*q[6+indexRegion];
+	    dyda[2] = xx*yy*q[6+indexRegion];
+	    dyda[3] = xx*q[6+indexRegion];
+	    dyda[4] = yy*q[6+indexRegion];
+	    dyda[5] = q[6+indexRegion];
+	    for (int i=6;i<na;i++)
+		    dyda[i] = 0;
+	    dyda[6+indexRegion] = y[0] * q[6+indexRegion];
+	    y[0] = 	y[0] * q[6+indexRegion];	 
+	    }
+
+}
+
+void DeriveHomography(double *x, double q[], double *y, double *dyda, int na)
+{
+	double xx = x[0], yy = x[1];
+	int indexRegion = int(x[2]);
+
 	y[0] = q[0] * xx*xx + q[1] * yy*yy + q[2] * xx*yy + q[3] * xx + q[4] * yy + q[5];
 
 	dyda[0] = xx*xx;
@@ -128,9 +170,9 @@ void mrqcof(TREEL *x, TREEL *y, TREEL *sig, long ndata, TREEL *a,
 	/* ANSI: void (*funcs)(TREEL *x,TREEL a[],TREEL *y,TREEL **dyda,int na); */
 {
 	int k, j, i;
-	TREEL ymod[1], wt, sig2i, dy, *dyda;
+	TREEL ymod, wt, sig2i, dy, *dyda;
 
-	dyda = new double[ma + 1];
+	dyda = new double[ma ];
 	for (j = 0; j<mfit; j++)
 	{
 		for (k = 0; k <= j; k++)
@@ -140,9 +182,9 @@ void mrqcof(TREEL *x, TREEL *y, TREEL *sig, long ndata, TREEL *a,
 	*chisq = 0.0;
 	for (i = 0; i<ndata; i++)
 	{
-		(*funcs)(&x[3 * i], a, ymod, dyda, ma);
+		(*funcs)(&x[3 * i], a, &ymod, dyda, ma);
 		sig2i = (sig[i] * sig[i]);
-		dy = y[i] - ymod[0];
+		dy = y[i] - ymod;
 		for (j = 0; j<mfit; j++)
 		{
 			wt = dyda[lista[j]] * sig2i;
@@ -236,7 +278,7 @@ vector<double> AjusteQuadrique(vector<double> xMarche,vector <double> yMarche,ve
 	// Niveau rouge,vert et bleu des pixels dans les marches
 	double	*yMarcheR, *yMarcheV, *yMarcheB;
 	long	itst;
-	long 	ma=6, mfit=6;
+	long 	ma=paramIni.size(), mfit=paramIni.size();
 	double	alamda = -1, chisq, oldchisq;
 	// Matrice de covariance et de de gain voir Numerical Recipes
 	double	**covar=new double*[ma], **alpha= new double*[ma];
@@ -246,13 +288,15 @@ vector<double> AjusteQuadrique(vector<double> xMarche,vector <double> yMarche,ve
 		covar[i] = new double[mfit];
 		alpha[i] = new double[mfit];
 	}
+    for (int i = 0; i<yMarche.size();i++)
+        sig[i] = 0.01 * fabs(yMarche[i]);
 	int nbPixelsFit = yMarche.size();
 	vector<double> q;
 	q.resize(paramIni.size());
 	q = paramIni;
 		// Minimisation
 	alamda = -1;
-	vector<long> lista(6);
+	vector<long> lista(paramIni.size());
 	for (int i = 0; i<mfit; i++)
 		lista[i] = i;
 	int statusMin = mrqmin(xMarche.data(), yMarche.data(), sig, nbPixelsFit, q.data(),  ma, lista.data(), mfit, covar, alpha,
@@ -272,14 +316,13 @@ vector<double> AjusteQuadrique(vector<double> xMarche,vector <double> yMarche,ve
 	return q;
 }
 
-vector<double> AjusteHomography(vector<double> xMarche,vector <double> yMarche,vector<double> paramIni)
+vector<double> AjusteHomography(vector<double> x,vector <double> y,vector<double> paramIni)
 {
 	// Bruit sur les données
-	double	*sig = new double[yMarche.size()];
+	double	*sig = new double[y.size()];
 	// Dérivée de f(x,y) par rapport aux paramètres
 	double	*dyda;
 	// Niveau rouge,vert et bleu des pixels dans les marches
-	double	*yMarcheR, *yMarcheV, *yMarcheB;
 	long	itst;
 	long 	ma=6, mfit=6;
 	double	alamda = -1, chisq, oldchisq;
@@ -291,7 +334,7 @@ vector<double> AjusteHomography(vector<double> xMarche,vector <double> yMarche,v
 		covar[i] = new double[mfit];
 		alpha[i] = new double[mfit];
 	}
-	int nbPixelsFit = yMarche.size();
+	int nbPixelsFit = y.size();
 	vector<double> q;
 	q.resize(paramIni.size());
 	q = paramIni;
@@ -300,15 +343,15 @@ vector<double> AjusteHomography(vector<double> xMarche,vector <double> yMarche,v
 	vector<long> lista(6);
 	for (int i = 0; i<mfit; i++)
 		lista[i] = i;
-	int statusMin = mrqmin(xMarche.data(), yMarche.data(), sig, nbPixelsFit, q.data(),  ma, lista.data(), mfit, covar, alpha,
+	int statusMin = mrqmin(x.data(), y.data(), sig, nbPixelsFit, q.data(),  ma, lista.data(), mfit, covar, alpha,
 		&chisq, &Derive, &alamda);
 	itst = 0;
 	int nbIteration = 10;
 	while (itst<nbIteration)
 	{
 		oldchisq = chisq;
-		mrqmin(xMarche.data(), yMarche.data(), sig, nbPixelsFit, q.data(),  ma, lista.data(), mfit, covar, alpha,
-			&chisq, &Derive, &alamda);
+		mrqmin(x.data(), y.data(), sig, nbPixelsFit, q.data(),  ma, lista.data(), mfit, covar, alpha,
+			&chisq, &DeriveHomography, &alamda);
 		if (chisq>oldchisq)
 			itst = 0;
 		else if (fabs(oldchisq - chisq)<FLT_EPSILON)

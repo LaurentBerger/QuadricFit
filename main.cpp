@@ -16,9 +16,9 @@ using namespace cv;
 using namespace std;
 
 
-//UMat GradientDericheY(UMat op, double alphaDerive, double alphaMoyenne);
-//UMat GradientDericheX(UMat op, double alphaDerive, double alphaMoyenne);
-//void CannyBis(InputArray _src, OutputArray _dst,double low_thresh, double high_thresh,	int aperture_size, bool L2gradient, InputOutputArray _dx, InputOutputArray _dy);
+UMat GradientDericheY(UMat op, double alphaDerive, double alphaMoyenne);
+UMat GradientDericheX(UMat op, double alphaDerive, double alphaMoyenne);
+void CannyBis(InputArray _src, OutputArray _dst,double low_thresh, double high_thresh,	int aperture_size, bool L2gradient, InputOutputArray _dx, InputOutputArray _dy);
 vector<double> AjusteQuadrique(vector<double> xMarche, vector <double> yMarche,vector<double> paramIni);
 
 template <typename T>
@@ -328,6 +328,21 @@ public:
 };
 
 
+static void DisplayImage(UMat x,string s)
+{
+	vector<Mat> sx;
+	split(x, sx);
+	vector<double> minVal(3), maxVal(3);
+	for (int i = 0; i < static_cast<int>(sx.size()); i++)
+	{
+		minMaxLoc(sx[i], &minVal[i], &maxVal[i]);
+	}
+	maxVal[0] = *max_element(maxVal.begin(), maxVal.end());
+	minVal[0] = *min_element(minVal.begin(), minVal.end());
+	Mat uc;
+	x.convertTo(uc, CV_8U,255/(maxVal[0]-minVal[0]),-255*minVal[0]/(maxVal[0]-minVal[0]));
+	imshow(s, uc);
+}
 
 
 
@@ -366,7 +381,7 @@ double QuadraticError(vector<double> xMarche, vector<double> yMarche, vector<dou
 	}
 	return e;
 }
-
+#ifdef __TOTO__
 int main(int argc, char* argv[])
 {
 	cv::ocl::setUseOpenCL(false);
@@ -505,46 +520,54 @@ int main(int argc, char* argv[])
 }
 
 
-#ifdef __TOTO__
-int main1(int argc, char* argv[])
+#else
+int main(int argc, char* argv[])
 {
 	cv::ocl::setUseOpenCL(false);
 	UMat m=UMat::zeros(256,256,CV_8UC1);
 	//imread("c:/lib/opencv/samples/data/pic3.png", CV_LOAD_IMAGE_GRAYSCALE).copyTo(m);
-	//imread("c:/lib/opencv/samples/data/aero1.jpg", CV_LOAD_IMAGE_GRAYSCALE).copyTo(m);
-	Mat mm = m.getMat(ACCESS_RW);
-	double pMax = -1000, pMin = 1000;
-	vector<double> pReel = { 00,00,40,10,5,100 };
-	for (int i=20;i<mm.rows-20;i++)
-		for (int j = 20; j < mm.cols-20; j++)
-		{
-			double xx = (j - 128)/256.;
-			double yy = (i - 128)/256.;
-
-			double p = xx*xx*pReel[0] +yy*yy*pReel[1]+xx*yy*pReel[2]+xx*pReel[3]+yy*pReel[4] +  pReel[5];
-			if (p > pMax)
-				pMax = p;
-			if (p < pMin)
-				pMin = p;
-			mm.at<uchar>(i, j) = p;
-		}
-	cout << pMin << "\t" << pMax << "\n";
+	//imread("f:/lib/opencv/samples/data/aero1.jpg", CV_LOAD_IMAGE_GRAYSCALE).copyTo(m);
+	imread("C:/Users/Laurent.PC-LAURENT-VISI/Downloads/14607367432299179.png", CV_LOAD_IMAGE_COLOR).copyTo(m);
 	/**
 	Etape 0 : Calcul du gradient de l'image im (calibre) et moyennage du résultat. L	
 	Détection des contours : opérateur de deriche suivi d'un filtre moyenneur
 	*/
-	double ad=1, am = 1;
-	double thresh1=5, thresh2=20;
+	double ad=0.8, am = 0.8;
+	double thresh1=15, thresh2=50;
 	Mat dst; 
 	UMat rx = GradientDericheX(m, ad, am);
 	UMat ry = GradientDericheY(m, ad, am);
+    UMat dxMax,dyMax;
+    if (rx.channels() > 1)
+    {
+        vector<UMat> x;
+        split(rx,x);
+        dxMax = x[0].clone();
+        for (int i = 1; i<m.channels();i++)
+            max( x[i],dxMax,dxMax);
+        vector<UMat> y;
+        split(rx,y);
+        dyMax = y[0];
+        for (int i = 1; i<m.channels();i++)
+            max(dyMax, y[i],dyMax);
+
+    }
+    else
+    {
+        dxMax=rx;
+        dyMax=ry;
+    }
+    DisplayImage(dxMax, "Gx");
+    DisplayImage(dyMax, "Gy");
+
 	Mat dx, dy;
-	rx.getMat(ACCESS_READ).convertTo(dx, CV_16S);
-	ry.getMat(ACCESS_READ).convertTo(dy, CV_16S);
+	dxMax.getMat(ACCESS_READ).convertTo(dx, CV_16S);
+	dyMax.getMat(ACCESS_READ).convertTo(dy, CV_16S);
 	CannyBis(m, dst, thresh1, thresh2, 3, false, dx, dy);
-	Mat elt = getStructuringElement(MORPH_RECT, Size(5, 5));
+	Mat elt = getStructuringElement(MORPH_RECT, Size(3, 3));
 	dilate(dst, dst, elt);
-	imshow("Original", mm);
+    bitwise_not(dst,dst);
+    imshow("Original", m);
 	imshow("CannyDeriche", dst);
 	/**
 	ETAPE 1  : Régions connexes de l'image (ensemble des pixels avec un gradient faible)
@@ -580,11 +603,12 @@ int main1(int argc, char* argv[])
 	}
 	vector<size_t> cle=sort_indexes(surface);
 	Mat tmp;
-	cmpConnex.convertTo(tmp, CV_8U,10);
+	cmpConnex.convertTo(tmp, CV_8U);
 	imshow("Cmp Connex", tmp);
 	waitKey();
-	int surfMinMarche = 100;
-	int pasPixel = 1;
+   
+	int surfMinMarche = surface[cle[cle.size()-40]];
+	int pasPixel = 20;
 	int nbC = dst.cols,nbL=dst.rows;
 	double	yg = dst.rows / 2, xg = dst.cols / 2;
 	vector<double> xMarche;
@@ -594,42 +618,46 @@ int main1(int argc, char* argv[])
 	split(m, plan);
 	int ind = 0;
 	for (int k=0;k<plan.size();k++)
-	for (int i = 0; i < dst.rows; i+=pasPixel)
-	{
-		uchar *datar = plan[k].ptr(i);
-		for (int j = 0; j < dst.cols; j += pasPixel, datar += pasPixel)
-		{
-			int idxStep = cmpConnex.at <ushort> (i, j);
-			if (surface[idxStep] > surfMinMarche)
-			{
-				xMarche.push_back((j - xg) / nbC);
-				xMarche.push_back((i - yg) / nbL);
-//				if (indMarche.find(idxStep) == indMarche.end())
-//					indMarche.insert(make_pair(idxStep, ind++));
-//				ind = indMarche.find(idxStep)->second*00;
-				ind = 0;
-				xMarche.push_back(ind);
-				yMarche[k].push_back(*datar);
-			}
-		}
-	}
-	for (int i = 0; i < yMarche[0].size(); i+=100)
-	{
-		cout <<  yMarche[0][i] << endl;
-	}
-	vector <double> paramIni;
-	paramIni.resize(6 + indMarche.size());
+	    for (int i = 0; i < dst.rows; i+=pasPixel)
+	    {
+		    uchar *datar = plan[k].ptr(i);
+		    for (int j = 0; j < dst.cols; j += pasPixel, datar += pasPixel)
+		    {
+			    int idxStep = cmpConnex.at <ushort> (i, j);
+			    if (surface[idxStep] >= surfMinMarche)
+			    {
+				    xMarche.push_back((j - xg) / nbC);
+				    xMarche.push_back((i - yg) / nbL);
+                    multimap<int,int>::iterator it=indMarche.find(idxStep);
+                    int ind0;
+                    if (it == indMarche.end())
+                    {
+                        ind0=ind;
+					    indMarche.insert(make_pair(idxStep, ind++));
+                    }
+				    else 
+                        ind0 = it->second;
+				    xMarche.push_back(ind0);
+				    yMarche[k].push_back(*datar);
+			    }
+		    }
+	    }
+	vector <double> paramIni(plan.size());
+    if (indMarche.size()==1)
+	    paramIni.resize(6 );
+	else
+        paramIni.resize(6 + indMarche.size());
 
 	paramIni[0] = 0;
 	paramIni[1] = 0;
-	paramIni[2] = pReel[2];
-	paramIni[3] = pReel[3];
-	paramIni[4] = pReel[4];
-	paramIni[5] =pReel[5];
+	paramIni[2] = 0;
+	paramIni[3] =0;
+	paramIni[4] = 0;
+	paramIni[5] =1;
 	for (int i = 6; i < paramIni.size(); i++)
 		paramIni[i] = 1;
 
-	Ptr<QuadriqueLight> ql = makePtr < QuadriqueLight>(xMarche, yMarche[0]);
+/*	Ptr<QuadriqueLight> ql = makePtr < QuadriqueLight>(xMarche, yMarche[0]);
 		ql.dynamicCast<QuadriqueLight>()->nbParameters = static_cast<int>(paramIni.size());
 
 	cv::Ptr<LMSolver> pb_ql = createLMSolver(ql, 400* paramIni.size());
@@ -638,17 +666,39 @@ int main1(int argc, char* argv[])
 		for (int i = 0; i < paramIni.size(); i++)
 			cout << paramIni[i] << "\t";
 		cout << endl;
-		for (int i = 0; i < pReel.size(); i++)
-			cout << pReel[i] << "\t";
 		cout << endl;
+*/
+    vector <double> q=AjusteQuadrique(xMarche, yMarche[0],paramIni);
+	for (int i = 0; i < q.size(); i++)
+		cout << q[i] << "\t";
+	cout << endl;
+    double gainGlobale=0;
+	for (int i = 0; i < dst.rows; i++)
+	{
+		uchar *datar = plan[0].ptr(i);
+		for (int j = 0; j < dst.cols; j++, datar++)
+		{
+			double xx= (j - xg) / nbC;
+			double yy=(i - yg) / nbL;
+            gainGlobale+= q[0] * xx*xx + q[1] * yy*yy + q[2] * xx*yy + q[3] * xx + q[4] * yy + q[5];
+		}
+	}
+    gainGlobale /= dst.rows*dst.cols;
+	for (int k=0;k<plan.size();k++)
+	for (int i = 0; i < dst.rows; i++)
+	{
+		uchar *datar = plan[k].ptr(i);
+		for (int j = 0; j < dst.cols; j++, datar++)
+		{
+			double xx= (j - xg) / nbC;
+			double yy=(i - yg) / nbL;
+            double gain= q[0] * xx*xx + q[1] * yy*yy + q[2] * xx*yy + q[3] * xx + q[4] * yy + q[5];
+            *datar=*datar/(gain/gainGlobale);
+		}
+	}
 
-		vector <double> pNrc=AjusteQuadrique(xMarche, yMarche[0]);
-		for (int i = 0; i < pNrc.size(); i++)
-			cout << pNrc[i] << "\t";
-		cout << endl;
-
-
-
+    imshow("corrected ", plan[0]);
+    waitKey();
 #ifdef TEST_LK_	
 	Mat m0=Mat::zeros(256,256,CV_8UC1);
     Mat m1=Mat::zeros(256,256,CV_8UC1);
