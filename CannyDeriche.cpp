@@ -51,39 +51,60 @@ public:
         int tailleSequence=(img.rows>img.cols)?img.rows:img.cols;
         double *g1=new double[tailleSequence],*g2=new double[tailleSequence];
         int rows=img.rows,cols=img.cols;
+		int oMax = static_cast<int>(max(num.size(), den.size()));
 
+		// Filtrage colonnne : signal matrice colonne
 
         switch(img.depth()){
         case CV_8U :
         {
-            unsigned char *x;
+// zone filtrée par le thread : bande verticale
             for (int j=range.start;j<range.end;j++)
             {
-                // Causal vertical  IIR filter
-                unsigned char *x = (unsigned char*)src.ptr(0);
+                // Causal vertical  IIR filter 
                 f2 = (float*)dst.ptr(0);
                 f2 += j;
-                x+=j;
-                g1[0]=0;
-                for (int k=0;k<num.size();k++)
-                    g1[0] += num[k];
-                g1[0] *= *x;
-                x++;
-                for (int i = 1; i<static_cast<int>(max(num.size(), den.size()));i++)
-                {
-                    g1[i]=0;
-                    for (int k=0;k<num.size();k++)
-                        if (i-k>=0)
-                            g1[i] += num[k] * [;
-                i++;
-                c1+=cols;
-                g1[i] = a1 * *c1 + a2 * c1[-cols] + (b1+b2) * g1[i-1];
-                g1[i] = a1 * *c1 + a2 * c1[-cols] + (b1) * g1[i-1];
-                i++;
-                c1+=cols;
-                for (i=2;i<rows;i++,c1+=cols)
-                    g1[i] = a1 * *c1 + a2 * c1[-cols] +b1*g1[i-1]+b2 *g1[i-2];
-                // Anticausal vertical IIR filter
+				for (int i = 0; i < rows; i++)
+				{
+					unsigned char *x = (unsigned char*)src.ptr(0);
+					x += j;
+					// Constant boundary
+					double boundary = *x;
+					g1[i] = 0;
+					for (int k = 0; k < oMax; k++, x += -cols)
+					{
+						if (i - k >= 0)
+						{
+							if (k < num.size())
+								g1[i] += num[k] * *x;
+							if (k<den.size())
+								g1[i]+= -den[k] * g1[i - k];
+						}
+						else if (k<num.size())
+							g1[i] += num[k] * boundary;
+					}
+				}
+				// Anticausal vertical IIR filter
+				for (int i = rows-1; i >=0; i++)
+				{
+					unsigned char *x = (unsigned char*)src.ptr(rows-1);
+					x += j;
+					// Constant boundary
+					double boundary = *x;
+					g2[i] = 0;
+					for (int k = 0; k < oMax; k++, x += cols)
+					{
+						if (i + k <rows)
+						{
+							if (k < num.size())
+								g2[i] += num[k] * *x;
+							if (k<den.size())
+								g2[i] += -den[k] * g2[i + k];
+						}
+						else if (k<num.size())
+							g1[i] += num[k] * boundary;
+					}
+				}
                 c1 = (unsigned char*)src.ptr(0);
                 c1 += (rows-1)*cols+j;
                 i = rows-1;
