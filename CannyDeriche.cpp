@@ -24,7 +24,7 @@ http://www.esiee.fr/~coupriem/Algo/algoima.html
  
 
 
-
+#ifdef __AFINIRIIRFILTER__
 namespace cv{
 class ParallelIIRColFilter: public ParallelLoopBody
 {
@@ -186,7 +186,7 @@ public:
 
 
 }
-
+#endif
 
 
 
