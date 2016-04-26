@@ -14,10 +14,159 @@ http://www.esiee.fr/~coupriem/Algo/algoima.html
 */
 
 
+
 #include "opencv2/highgui.hpp"
 #include <math.h>
 #include <vector>
 #include <iostream>
+
+
+ 
+
+
+
+namespace cv{
+class ParallelIIRColFilter: public ParallelLoopBody
+{
+private:
+    Mat &src;
+    Mat &dst;
+    std::vector<double> num,den;
+    bool verbose;
+public:
+    ParallelIIRColFilter(Mat& imgSrc, Mat &d,std::vector<double> &a,std::vector<double> &b):
+        src(imgSrc),
+        dst(d),
+        num(a),
+        den(b),
+        verbose(false)
+    {}
+    void Verbose(bool b){verbose=b;}
+    virtual void operator()(const Range& range) const
+    {
+        if (verbose)
+            std::cout << getThreadNum()<<"# :Start from row " << range.start << " to "  << range.end-1<<" ("<<range.end-range.start<<" loops)" << std::endl;
+
+        float                *f2;
+        int tailleSequence=(img.rows>img.cols)?img.rows:img.cols;
+        double *g1=new double[tailleSequence],*g2=new double[tailleSequence];
+        int rows=img.rows,cols=img.cols;
+
+
+        switch(img.depth()){
+        case CV_8U :
+        {
+            unsigned char *x;
+            for (int j=range.start;j<range.end;j++)
+            {
+                // Causal vertical  IIR filter
+                unsigned char *x = (unsigned char*)src.ptr(0);
+                f2 = (float*)dst.ptr(0);
+                f2 += j;
+                x+=j;
+                g1[0]=0;
+                for (int k=0;k<num.size();k++)
+                    g1[0] += num[k];
+                g1[0] *= *x;
+                x++;
+                for (int i = 1; i<static_cast<int>(max(num.size(), den.size()));i++)
+                {
+                    g1[i]=0;
+                    for (int k=0;k<num.size();k++)
+                        if (i-k>=0)
+                            g1[i] += num[k] * [;
+                i++;
+                c1+=cols;
+                g1[i] = a1 * *c1 + a2 * c1[-cols] + (b1+b2) * g1[i-1];
+                g1[i] = a1 * *c1 + a2 * c1[-cols] + (b1) * g1[i-1];
+                i++;
+                c1+=cols;
+                for (i=2;i<rows;i++,c1+=cols)
+                    g1[i] = a1 * *c1 + a2 * c1[-cols] +b1*g1[i-1]+b2 *g1[i-2];
+                // Anticausal vertical IIR filter
+                c1 = (unsigned char*)src.ptr(0);
+                c1 += (rows-1)*cols+j;
+                i = rows-1;
+                g2[i] =(a3+a4+b1+b2)* *c1;
+                g2[i] =(a3+a4)* *c1;
+                i--;
+                c1-=cols;
+                g2[i] = a3* c1[cols] + a4 * c1[cols]+(b1+b2)*g2[i+1];
+                g2[i] = a3* c1[cols] + a4 * c1[cols]+(b1)*g2[i+1];
+                i--;
+                c1-=cols;
+                for (i=rows-3;i>=0;i--,c1-=cols)
+                    g2[i] = a3*c1[cols] +a4* c1[2*cols]+
+                            b1*g2[i+1]+b2*g2[i+2];
+                for (i=0;i<rows;i++,f2+=cols)
+                    *f2 = (float)(g1[i]+g2[i]);
+                }
+            }
+            break;
+        case CV_16S :
+        case CV_16U :
+        {
+            unsigned short *c1;
+            for (int j=range.start;j<range.end;j++)
+            {
+                c1 = ((unsigned short*)img.ptr(0));
+                f2 = ((float*)im1.ptr(0));
+                f2 += j;
+                c1+=j;
+                int i=0;
+                g1[i] = (a1 + a2 +b1+b2)* *c1  ;
+                g1[i] = (a1 + a2 )* *c1  ;
+                i++;
+                c1+=cols;
+                g1[i] = a1 * *c1 + a2 * c1[-cols] + (b1+b2) * g1[i-1];
+                g1[i] = a1 * *c1 + a2 * c1[-cols] + (b1) * g1[i-1];
+                i++;
+                c1+=cols;
+                for (i=2;i<rows;i++,c1+=cols)
+                    g1[i] = a1 * *c1 + a2 * c1[-cols] +b1*g1[i-1]+b2 *g1[i-2];
+                // Anticausal vertical IIR filter
+                c1 = ((unsigned short*)img.ptr(0));
+                c1 += (rows-1)*cols+j;
+                i = rows-1;
+                g2[i] =(a3+a4+b1+b2)* *c1;
+                g2[i] =(a3+a4)* *c1;
+                i--;
+                c1-=cols;
+                g2[i] = (a3+a4)* c1[cols] +(b1+b2)*g2[i+1];
+                g2[i] = (a3+a4)* c1[cols] +(b1)*g2[i+1];
+                i--;
+                c1-=cols;
+                for (i=rows-3;i>=0;i--,c1-=cols)
+                    g2[i] = a3*c1[cols] +a4* c1[2*cols]+b1*g2[i+1]+b2*g2[i+2];
+                c1 = ((unsigned short*)img.ptr(0))+j;
+                for (i=0;i<rows;i++,f2+=cols,c1+=cols)
+                    *f2 = 0**c1+(float)(g1[i]+g2[i]);
+            }
+        }
+            break;
+        case CV_32S :
+             break;
+        case CV_32F :
+             break;
+        case CV_64F :
+             break;
+        default :
+            delete []g1;
+            delete []g2;
+            return ;
+            }
+        delete []g1;
+        delete []g2;
+    };
+    ParallelIIRColFilter& operator=(const ParallelIIRColFilter &) {
+         return *this;
+    };
+};
+
+
+}
+
+
 
 
 /*
