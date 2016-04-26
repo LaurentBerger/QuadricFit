@@ -528,6 +528,7 @@ int main(int argc, char* argv[])
 	//imread("c:/lib/opencv/samples/data/pic3.png", CV_LOAD_IMAGE_GRAYSCALE).copyTo(m);
 	//imread("f:/lib/opencv/samples/data/aero1.jpg", CV_LOAD_IMAGE_GRAYSCALE).copyTo(m);
 	imread("C:/Users/Laurent.PC-LAURENT-VISI/Downloads/14607367432299179.png", CV_LOAD_IMAGE_COLOR).copyTo(m);
+	imread("C:/Users/Laurent.PC-LAURENT-VISI/Desktop/n67ut.jpg", CV_LOAD_IMAGE_COLOR).copyTo(m);
 	/**
 	Etape 0 : Calcul du gradient de l'image im (calibre) et moyennage du résultat. L	
 	Détection des contours : opérateur de deriche suivi d'un filtre moyenneur
@@ -546,8 +547,8 @@ int main(int argc, char* argv[])
         for (int i = 1; i<m.channels();i++)
             max( x[i],dxMax,dxMax);
         vector<UMat> y;
-        split(rx,y);
-        dyMax = y[0];
+        split(ry,y);
+        dyMax = y[0].clone();
         for (int i = 1; i<m.channels();i++)
             max(dyMax, y[i],dyMax);
 
@@ -606,9 +607,10 @@ int main(int argc, char* argv[])
 	cmpConnex.convertTo(tmp, CV_8U);
 	imshow("Cmp Connex", tmp);
 	waitKey();
-   
+    surface[cmpConnex.at <ushort> (1, 1)]=0;
+    surface[cmpConnex.at <ushort> (m.rows-1, m.cols-1)]=0;
 	int surfMinMarche = surface[cle[cle.size()-40]];
-	int pasPixel = 20;
+	int pasPixel = 5;
 	int nbC = dst.cols,nbL=dst.rows;
 	double	yg = dst.rows / 2, xg = dst.cols / 2;
 	vector<double> xMarche;
@@ -668,36 +670,46 @@ int main(int argc, char* argv[])
 		cout << endl;
 		cout << endl;
 */
-    vector <double> q=AjusteQuadrique(xMarche, yMarche[0],paramIni);
-	for (int i = 0; i < q.size(); i++)
-		cout << q[i] << "\t";
-	cout << endl;
-    double gainGlobale=0;
-	for (int i = 0; i < dst.rows; i++)
-	{
-		uchar *datar = plan[0].ptr(i);
-		for (int j = 0; j < dst.cols; j++, datar++)
-		{
-			double xx= (j - xg) / nbC;
-			double yy=(i - yg) / nbL;
-            gainGlobale+= q[0] * xx*xx + q[1] * yy*yy + q[2] * xx*yy + q[3] * xx + q[4] * yy + q[5];
-		}
-	}
-    gainGlobale /= dst.rows*dst.cols;
-	for (int k=0;k<plan.size();k++)
-	for (int i = 0; i < dst.rows; i++)
-	{
-		uchar *datar = plan[k].ptr(i);
-		for (int j = 0; j < dst.cols; j++, datar++)
-		{
-			double xx= (j - xg) / nbC;
-			double yy=(i - yg) / nbL;
-            double gain= q[0] * xx*xx + q[1] * yy*yy + q[2] * xx*yy + q[3] * xx + q[4] * yy + q[5];
-            *datar=*datar/(gain/gainGlobale);
-		}
-	}
+    for (int idxChannel = 0; idxChannel < plan.size(); idxChannel++)
+    {
+        vector <double> q=AjusteQuadrique(xMarche, yMarche[idxChannel],paramIni);
+	    for (int i = 0; i < q.size(); i++)
+		    cout << q[i] << "\t";
+	    cout << endl;
+        double gainGlobale=0;
+	    for (int i = 0; i < dst.rows; i++)
+	    {
+		    uchar *datar = plan[idxChannel].ptr(i);
+		    for (int j = 0; j < dst.cols; j++, datar++)
+		    {
+			    double xx= (j - xg) / nbC;
+			    double yy=(i - yg) / nbL;
+                gainGlobale+= q[0] * xx*xx + q[1] * yy*yy + q[2] * xx*yy + q[3] * xx + q[4] * yy + q[5];
+		    }
+	    }
+        gainGlobale /= dst.rows*dst.cols;
+	    for (int i = 0; i < dst.rows; i++)
+	    {
+		    uchar *datar = plan[idxChannel].ptr(i);
+		    for (int j = 0; j < dst.cols; j++, datar++)
+		    {
+			    double xx= (j - xg) / nbC;
+			    double yy=(i - yg) / nbL;
+                double gain= q[0] * xx*xx + q[1] * yy*yy + q[2] * xx*yy + q[3] * xx + q[4] * yy + q[5];
+                int idxStep = cmpConnex.at <ushort> (i, j);
+                multimap<int,int>::iterator it=indMarche.find(idxStep);
+                if (it == indMarche.end())
+                    *datar=saturate_cast<uchar>(*datar/(gain/gainGlobale));
+                else
+                    *datar=saturate_cast<uchar>(*datar/(gain/gainGlobale));
+		    }
+	    }
 
-    imshow("corrected ", plan[0]);
+    }
+    Mat res;
+    merge(plan,res);
+    imshow("corrected ", res);
+    imwrite("corrected.png",res);
     waitKey();
 #ifdef TEST_LK_	
 	Mat m0=Mat::zeros(256,256,CV_8UC1);

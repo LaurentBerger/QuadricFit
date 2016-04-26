@@ -505,7 +505,7 @@ void CannyBis( InputArray _src, OutputArray _dst,
                 double low_thresh, double high_thresh,
                 int aperture_size, bool L2gradient ,InputOutputArray _dx,InputOutputArray _dy)
 {
-    const int type = _src.type(), depth = CV_MAT_DEPTH(type), cn = CV_MAT_CN(type);
+    const int type = _src.type(), depth = CV_MAT_DEPTH(type), cn = 1;
     const Size size = _src.size();
 
     CV_Assert( depth == CV_8U );
