@@ -36,7 +36,7 @@ public:
 
         float                *f2;
         int tailleSequence=(img.rows>img.cols)?img.rows:img.cols;
-        double *g1=new double[tailleSequence],*g2=new double[tailleSequence];
+        double *yp=new double[tailleSequence],*ym=new double[tailleSequence];
         int rows=img.rows,cols=img.cols;
 
         double				q=w/a;
@@ -59,72 +59,90 @@ public:
         {
             for (int j=range.start;j<range.end;j++)
             {
-                // Causal vertical  IIR filter
-                unsigned char *c1 = (unsigned char*)img.ptr(0)+j;
+                // Formule 26 p194 
+                unsigned char *c1 = (unsigned char*)img.ptr(0)+j;// c1 pointeur sur x(i-1)
                 f2 = ((float*)im1.ptr(0))+j;
                 double border=*c1;
-                g1[0] =  *c1 * (1-b1+b1*b1-b2);
-                c1+=cols;
-                g1[1] = *c1 - b1*g1[0]-b2*border;
+                yp[0] =  border * (1-b1+b1*b1-b2);
+                yp[1] = *c1 - b1*yp[0]-b2*border;
                 c1+=cols;
                 for (int i=2;i<rows;i++,c1+=cols)
-                    g1[i] = *c1-b1*g1[i-1]-b2*g1[i-2];
+                    yp[i] = *c1-b1*yp[i-1]-b2*yp[i-2];
                 // Anticausal vertical IIR filter
                 c1 = (unsigned char*)img.ptr(rows-1)+j;
                 border=*c1;
-                g2[rows-1] =*c1 * (1-b1+b1*b1-b2);
-                c1-=cols;
-                g2[rows-2] =*c1 - b1*g1[0]-b2*border;
+                ym[rows-1] =*c1 * (1-b1+b1*b1-b2);
+                ym[rows-2] =*c1 - b1*ym[rows-1]-b2*border;
                 c1-=cols;
                 for (int i=rows-3;i>=0;i--,c1-=cols)
-                    g2[i]=*c1-b1*g2[i+1]-b2*g2[i+2];
+                    ym[i]=*c1-b1*ym[i+1]-b2*ym[i+2];
                 for (int i=0;i<rows;i++,f2+=cols)
-                    *f2 = (float)(a1*(g1[i]-g2[i]));
+                    *f2 = (float)(a1*(ym[i]-yp[i]));
             }
         }
             break;
         case CV_16S :
-        case CV_16U :
+		{
+			for (int j = range.start; j<range.end; j++)
+			{
+				// Causal vertical  IIR filter
+				short *c1 = (short*)img.ptr(0) + j;
+				f2 = ((float*)im1.ptr(0)) + j;
+				double border = *c1;
+				yp[0] = border * (1 - b1 + b1*b1 - b2);
+				yp[1] = *c1 - b1*yp[0] - b2*border;
+				c1 += cols;
+				for (int i = 2; i<rows; i++, c1 += cols)
+					yp[i] = *c1 - b1*yp[i - 1] - b2*yp[i - 2];
+				// Anticausal vertical IIR filter
+				c1 = (short*)img.ptr(rows - 1) + j;
+				border = *c1;
+				ym[rows - 1] = *c1 * (1 - b1 + b1*b1 - b2);
+				ym[rows - 2] = *c1 - b1*ym[rows - 1] - b2*border;
+				c1 -= cols;
+				for (int i = rows - 3; i >= 0; i--, c1 -= cols)
+					ym[i] = *c1 - b1*ym[i + 1] - b2*ym[i + 2];
+				for (int i = 0; i<rows; i++, f2 += cols)
+					*f2 = (float)(a1*(ym[i] - yp[i]));
+			}
+		}
+		break;
+		case CV_16U :
         {
             for (int j=range.start;j<range.end;j++)
             {
                 // Causal vertical  IIR filter
                 unsigned short *c1 = (unsigned short*)img.ptr(0)+j;
                 f2 = ((float*)im1.ptr(0))+j;
-                double border=*c1;
-                g1[0] =  *c1 * (1-b1+b1*b1-b2);
-                c1+=cols;
-                g1[1] = *c1 - b1*g1[0]-b2*border;
-                c1+=cols;
-                for (int i=2;i<rows;i++,c1+=cols)
-                    g1[i] = *c1-b1*g1[i-1]-b2*g1[i-2];
-                // Anticausal vertical IIR filter
-                c1 = (unsigned short*)img.ptr(rows-1)+j;
-                border=*c1;
-                g2[rows-1] =*c1 * (1-b1+b1*b1-b2);
-                c1-=cols;
-                g2[rows-2] =*c1 - b1*g1[0]-b2*border;
-                c1-=cols;
-                for (int i=rows-3;i>=0;i--,c1-=cols)
-                    g2[i]=*c1-b1*g2[i+1]-b2*g2[i+2];
-                for (int i=0;i<rows;i++,f2+=cols)
-                    *f2 = (float)(a1*(g1[i]-g2[i]));
-            }
+				double border = *c1;
+				yp[0] = border * (1 - b1 + b1*b1 - b2);
+				yp[1] = *c1 - b1*yp[0] - b2*border;
+				c1 += cols;
+				for (int i = 2; i<rows; i++, c1 += cols)
+					yp[i] = *c1 - b1*yp[i - 1] - b2*yp[i - 2];
+				// Anticausal vertical IIR filter
+				c1 = (unsigned short*)img.ptr(rows - 1) + j;
+				border = *c1;
+				ym[rows - 1] = *c1 * (1 - b1 + b1*b1 - b2);
+				ym[rows - 2] = *c1 - b1*ym[rows - 1] - b2*border;
+				c1 -= cols;
+				for (int i = rows - 3; i >= 0; i--, c1 -= cols)
+					ym[i] = *c1 - b1*ym[i + 1] - b2*ym[i + 2];
+				for (int i = 0; i<rows; i++, f2 += cols)
+					*f2 = (float)(a1*(ym[i] - yp[i]));
+			}
         }
             break;
         case CV_32S :
-             break;
         case CV_32F :
-             break;
         case CV_64F :
-             break;
         default :
-            delete []g1;
-            delete []g2;
+            delete []ym;
+            delete []yp;
             return ;
             }
-        delete []g1;
-        delete []g2;
+        delete []ym;
+        delete []yp;
     };
     ParallelGradientPaillouYCols& operator=(const ParallelGradientPaillouYCols &) {
          return *this;
@@ -157,8 +175,6 @@ public:
         float *f1,*f2;
         int tailleSequence=(img.rows>img.cols)?img.rows:img.cols;
         double *g1=new double[tailleSequence],*g2=new double[tailleSequence];
-        double k,a5,a6,a7,a8;
-        double b3,b4;
         int cols=img.cols;
 
         double				q=w/a;
