@@ -41,7 +41,7 @@ public:
 
         // Formule 12 p193
         double				b1=-2*exp(-a)*cosh(w);
-        double				a1=-b1-exp(-2*a)-1;
+        double				a1=2*exp(-a)*cosh(w)-exp(-2*a)-1;
         double				b2=exp(-2*a);
 
         switch(img.depth()){
@@ -53,7 +53,8 @@ public:
                 unsigned char *c1 = (unsigned char*)img.ptr(0)+j;// c1 pointeur sur x(i-1)
                 f2 = ((float*)im1.ptr(0))+j;
                 double border=*c1;
-                yp[0] =  border * (1-b1+b1*b1-b2);
+				yp[0] = *c1 ;
+				c1+=cols;
                 yp[1] = *c1 - b1*yp[0]-b2*border;
                 c1+=cols;
                 for (int i=2;i<rows;i++,c1+=cols)
@@ -61,9 +62,10 @@ public:
                 // Formule 27 p194 
                 c1 = (unsigned char*)img.ptr(rows-1)+j;
                 border=*c1;
-                ym[rows-1] =*c1 * (1-b1+b1*b1-b2);
-                ym[rows-2] =*c1 - b1*ym[rows-1]-b2*border;
-                c1-=cols;
+				ym[rows - 1] = *c1;
+				c1 -= cols;
+				ym[rows-2] =*c1 - b1*ym[rows-1];
+                c1 -= cols;
                 for (int i=rows-3;i>=0;i--,c1-=cols)
                     ym[i]=*c1-b1*ym[i+1]-b2*ym[i+2];
                 // Formule 25 p193
@@ -191,12 +193,14 @@ public:
             int j=0;
             iyp[0] = a0p*iy0[0] ;
             iyp[1] = a0p*iy0[1] + a1p*iy0[0] - b1*iyp[0];
+			iy0 += 2;
             for (j=2;j<cols;j++,iy0++)
                 iyp[j] = a0p*iy0[0] + a1p*iy0[-1] - b1*iyp[j-1] - b2*iyp[j-2];
             iy0 = ((float*)img.ptr(i))+cols-1;
             iym[cols-1] = 0;
             iy0--;
             iym[cols-2] = a1m*iy0[1]  - b1*iym[cols-1];
+			iy0--;
             for (j=cols-3;j>=0;j--,iy0--)
                 iym[j] = a1m*iy0[1] + a2m*iy0[2] - b1*iym[j+1] - b2*iym[j+2];
             iy = ((float*)dst.ptr(i));
@@ -431,9 +435,9 @@ UMat GradientPaillouY(UMat op, double a,double w)
         if (planSrc[i].isContinuous() && planTmp[i].isContinuous() && planDst[i].isContinuous())
         {
             ParallelGradientPaillouYCols x(planSrc[i],planTmp[i],a,w);
-            parallel_for_(Range(0,opSrc.cols), x,getNumThreads());
+            parallel_for_(Range(0,opSrc.cols), x,1);
             ParallelGradientPaillouYRows xr(planTmp[i],planDst[i],a,w);
-            parallel_for_(Range(0,opSrc.rows), xr,getNumThreads());
+            parallel_for_(Range(0,opSrc.rows), xr,1);
 
         }
         else

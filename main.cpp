@@ -530,12 +530,12 @@ int main(int argc, char* argv[])
 	//imread("c:/lib/opencv/samples/data/pic3.png", CV_LOAD_IMAGE_GRAYSCALE).copyTo(m);
 	//imread("f:/lib/opencv/samples/data/aero1.jpg", CV_LOAD_IMAGE_GRAYSCALE).copyTo(m);
 	imread("C:/Users/Laurent.PC-LAURENT-VISI/Downloads/14607367432299179.png", CV_LOAD_IMAGE_COLOR).copyTo(m);
-	imread("C:/Users/Laurent.PC-LAURENT-VISI/Desktop/n67ut.jpg", CV_LOAD_IMAGE_COLOR).copyTo(m);
+	imread("C:/lib/opencv/samples/data/lena.jpg", CV_LOAD_IMAGE_GRAYSCALE).copyTo(m);
 	/**
 	Etape 0 : Calcul du gradient de l'image im (calibre) et moyennage du résultat. L	
 	Détection des contours : opérateur de deriche suivi d'un filtre moyenneur
 	*/
-	double ad=0.8, am = 0.8;
+	double ad=1, am = 0.7;
 	double thresh1=15, thresh2=50;
 	Mat dst; 
 	UMat rx = GradientDericheX(m, ad, am);
