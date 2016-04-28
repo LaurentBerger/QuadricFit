@@ -266,22 +266,22 @@ public:
 		for (int j = range.start; j<range.end; j++)
 		{
 			iy0 = ((float*)img.ptr(0)+j);
-			int i = 0;
 			iyp[0] = a0p*iy0[0];
-			iyp[1] = a0p*iy0[1] + a1p*iy0[0] - b1*iyp[0];
-			iy0 += 2*cols;
-			for (i = 2; i<rows; i++, iy0+cols)
-				iyp[j] = a0p*iy0[0] + a1p*iy0[-1] - b1*iyp[j - 1] - b2*iyp[j - 2];
+			iy0 +=cols;
+			iyp[1] = a0p*iy0[0] + a1p*iy0[-cols] - b1*iyp[0];
+			iy0 +cols;
+			for (int i = 2; i<rows; i++, iy0+=cols)
+				iyp[i] = a0p*iy0[0] + a1p*iy0[-cols] - b1*iyp[i - 1] - b2*iyp[i - 2];
 			iy0 = ((float*)img.ptr(rows-1)) + j;
 			iym[rows - 1] = 0;
 			iy0 -=cols;
-			iym[cols - 2] = a1m*iy0[1] - b1*iym[cols - 1];
+			iym[rows - 2] = a1m*iy0[cols] - b1*iym[rows-1];
 			iy0-=cols;
-			for (i = rows - 3; i >= 0; i--, iy0-=cols)
-				iym[j] = a1m*iy0[1] + a2m*iy0[2] - b1*iym[j + 1] - b2*iym[j + 2];
+			for (int i = rows - 3; i >= 0; i--, iy0-=cols)
+				iym[i] = a1m*iy0[cols] + a2m*iy0[2*cols] - b1*iym[i + 1] - b2*iym[i + 2];
 			iy = ((float*)dst.ptr(0)+j);
-			for (i = 0; i<cols; i++, iy+=cols)
-				*iy = (float)(iym[j] + iyp[j]);
+			for (int i = 0; i<rows; i++, iy+=cols)
+				*iy = (float)(iym[i] + iyp[i]);
 		}
 		delete[]iym;
 		delete[]iyp;
@@ -333,7 +333,6 @@ public:
 			{
 				// Formule 26 p194 
 				unsigned char *c1 = (unsigned char*)img.ptr(i);// c1 pointeur sur x(i-1)
-				f2 = ((float*)im1.ptr(i));
 				double border = *c1;
 				yp[0] = *c1;
 				c1++;
@@ -351,8 +350,9 @@ public:
 				for (int j = cols - 3; j >= 0; j--, c1--)
 					ym[j] = *c1 - b1*ym[j + 1] - b2*ym[j + 2];
 				// Formule 25 p193
+				f2 = ((float*)im1.ptr(i));
 				for (int j = 0; j<cols; j++, f2 ++)
-					*f2 = (float)(a1*(ym[i] - yp[i]));
+					*f2 = (float)(a1*(ym[j] - yp[j]));
 			}
 		}
             break;
@@ -362,7 +362,7 @@ public:
 				for (int i = range.start; i<range.end; i++)
 				{
 					// Formule 26 p194 
-					unsigned char *c1 = (unsigned char*)img.ptr(i);// c1 pointeur sur x(i-1)
+					unsigned short *c1 = (unsigned short*)img.ptr(i);// c1 pointeur sur x(i-1)
 					f2 = ((float*)im1.ptr(i));
 					double border = *c1;
 					yp[0] = *c1;
@@ -372,7 +372,7 @@ public:
 					for (int j = 2; j<cols; j++, c1++)
 						yp[j] = *c1 - b1*yp[j - 1] - b2*yp[j - 2];
 					// Formule 27 p194 
-					c1 = (unsigned char*)img.ptr(i) + cols - 1;
+					c1 = (unsigned short*)img.ptr(i) + cols - 1;
 					border = *c1;
 					ym[cols - 1] = *c1;
 					c1--;
@@ -414,9 +414,9 @@ UMat GradientPaillouY(UMat op, double a,double w)
         if (planSrc[i].isContinuous() && planTmp[i].isContinuous() && planDst[i].isContinuous())
         {
             ParallelGradientPaillouYCols x(planSrc[i],planTmp[i],a,w);
-            parallel_for_(Range(0,opSrc.cols), x,1);
+            parallel_for_(Range(0,opSrc.cols), x,getNumThreads());
             ParallelGradientPaillouYRows xr(planTmp[i],planDst[i],a,w);
-            parallel_for_(Range(0,opSrc.rows), xr,1);
+            parallel_for_(Range(0,opSrc.rows), xr,getNumThreads());
 
         }
         else

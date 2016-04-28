@@ -19,7 +19,7 @@ using namespace std;
 UMat GradientDericheY(UMat op, double alphaDerive, double alphaMoyenne);
 UMat GradientDericheX(UMat op, double alphaDerive, double alphaMoyenne);
 UMat GradientPaillouY(UMat op, double alphaDerive, double alphaMoyenne);
-UMat GradientpaillouX(UMat op, double alphaDerive, double alphaMoyenne);
+UMat GradientPaillouX(UMat op, double alphaDerive, double alphaMoyenne);
 void CannyBis(InputArray _src, OutputArray _dst,double low_thresh, double high_thresh,	int aperture_size, bool L2gradient, InputOutputArray _dx, InputOutputArray _dy);
 vector<double> AjusteQuadrique(vector<double> xMarche, vector <double> yMarche,vector<double> paramIni);
 
@@ -523,22 +523,74 @@ int main(int argc, char* argv[])
 
 
 #else
+
+
+
+int aa=100,ww=10;
+int lowThreshold=20;
+int maxThreshold=20;
+int const max_lowThreshold = 500;
+Mat sobel_x, sobel_y;
+UMat img;
+const char* window_name = "Edge Map";
+
+static void CannyThreshold(int, void*)
+{
+    Mat dst;
+    double a=aa/100.0,w=ww/100.0;
+    if (a<w)
+        a=w+0.1;
+    UMat rx=  GradientPaillouX(img,a,w);
+    UMat ry=  GradientPaillouY(img,a,w);
+    double minv,maxv;
+    minMaxLoc(rx,&minv,&maxv);
+    std::cout << minv << "\t" << maxv << "\\t";
+    minMaxLoc(ry,&minv,&maxv);
+    std::cout << minv << " " << maxv << "\n";
+    Mat mm;
+    mm=abs(rx.getMat(ACCESS_READ));
+    rx.getMat(ACCESS_READ).convertTo(sobel_x,CV_16S,10);
+    mm=abs(ry.getMat(ACCESS_READ));ry.getMat(ACCESS_READ).convertTo(sobel_y,CV_16S,10);
+    minMaxLoc(sobel_x,&minv,&maxv);
+    std::cout << minv << "\t" << maxv << "\\t";
+    minMaxLoc(sobel_y,&minv,&maxv);
+    std::cout << minv << " " << maxv << "\n";
+    CannyBis(img, dst,lowThreshold, maxThreshold, 3,false,sobel_x,sobel_y);
+    imshow("edges x", sobel_x.mul(50));
+    imshow("edges y", sobel_y.mul(50));
+
+    imshow( window_name, dst );
+}
+
+
 int main(int argc, char* argv[])
 {
 	cv::ocl::setUseOpenCL(false);
 	UMat m=UMat::zeros(256,256,CV_8UC1);
 	//imread("c:/lib/opencv/samples/data/pic3.png", CV_LOAD_IMAGE_GRAYSCALE).copyTo(m);
 	//imread("f:/lib/opencv/samples/data/aero1.jpg", CV_LOAD_IMAGE_GRAYSCALE).copyTo(m);
-	imread("C:/Users/Laurent.PC-LAURENT-VISI/Downloads/14607367432299179.png", CV_LOAD_IMAGE_COLOR).copyTo(m);
-	imread("C:/lib/opencv/samples/data/lena.jpg", CV_LOAD_IMAGE_GRAYSCALE).copyTo(m);
+	//imread("C:/Users/Laurent.PC-LAURENT-VISI/Downloads/14607367432299179.png", CV_LOAD_IMAGE_COLOR).copyTo(m);
+	imread("C:/Users/Laurent.PC-LAURENT-VISI/Desktop/n67ut.jpg", CV_LOAD_IMAGE_GRAYSCALE).copyTo(m);
+	imread("C:/Users/Laurent.PC-LAURENT-VISI/Desktop/n67ut.jpg", CV_LOAD_IMAGE_GRAYSCALE).copyTo(img);
+//	imread("f:/lib/opencv/samples/data/lena.jpg", CV_LOAD_IMAGE_GRAYSCALE).copyTo(m);
+//	imread("f:/lib/opencv/samples/data/lena.jpg", CV_LOAD_IMAGE_GRAYSCALE).copyTo(img);
+      namedWindow( window_name, WINDOW_AUTOSIZE );
+
+      /// Create a Trackbar for user to enter threshold
+    createTrackbar( "Min Threshold:",window_name, &lowThreshold, max_lowThreshold, CannyThreshold );
+    createTrackbar( "Max Threshold:", window_name, &maxThreshold, max_lowThreshold, CannyThreshold );
+    createTrackbar( "a:",window_name, &aa, 400, CannyThreshold );
+    createTrackbar( "w:", window_name, &ww, 400, CannyThreshold );
+    CannyThreshold(0,NULL);
+    waitKey();
 	/**
 	Etape 0 : Calcul du gradient de l'image im (calibre) et moyennage du résultat. L	
 	Détection des contours : opérateur de deriche suivi d'un filtre moyenneur
 	*/
-	double ad=1, am = 0.7;
-	double thresh1=15, thresh2=50;
+	double ad=aa/100., am = ww/100.;
+	double thresh1=lowThreshold, thresh2=max_lowThreshold;
 	Mat dst; 
-	UMat rx = GradientDericheX(m, ad, am);
+	UMat rx = GradientPaillouX(m, ad, am);
 	UMat ry = GradientPaillouY(m, ad, am);
     UMat dxMax,dyMax;
     if (rx.channels() > 1)
@@ -582,6 +634,7 @@ int main(int argc, char* argv[])
 	vector<vector<Point> > contours;
 	vector<Vec4i> hierarchy;
 	vector<char> fillCtr;
+	waitKey();
 
 	findContours(dst, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);
 	Mat cmpConnex = Mat::zeros(m.size(), CV_16U);

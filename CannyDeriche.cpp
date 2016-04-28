@@ -1058,43 +1058,5 @@ void cvCannyBis( const CvArr* image, CvArr* edges, double threshold1,
               (aperture_size & CV_CANNY_L2_GRADIENT) != 0);
 }
 
-int lowThreshold=20;
-int maxThreshold=20;
-int const max_lowThreshold = 500;
-int alDerive=100;
-int alMean=100;
-Mat sobel_x, sobel_y;
-UMat img;
-const char* window_name = "Edge Map";
-
-/**
- * @function CannyThreshold
- * @brief Trackbar callback - Canny thresholds input with a ratio 1:3
- */
-static void CannyThreshold(int, void*)
-{
-    Mat dst;
-    double d=alDerive/100.0,m=alMean/100.0;
-    UMat rx=  GradientDericheX(img,d,m);
-    UMat ry=  GradientDericheY(img,d,m);
-    double minv,maxv;
-    minMaxLoc(rx,&minv,&maxv);
-    std::cout << minv << "\t" << maxv << "\\t";
-    minMaxLoc(ry,&minv,&maxv);
-    std::cout << minv << " " << maxv << "\n";
-    Mat mm;
-    mm=abs(rx.getMat(ACCESS_READ));
-    rx.getMat(ACCESS_READ).convertTo(sobel_x,CV_16S,1);
-    mm=abs(ry.getMat(ACCESS_READ));ry.getMat(ACCESS_READ).convertTo(sobel_y,CV_16S,1);
-    minMaxLoc(sobel_x,&minv,&maxv);
-    std::cout << minv << "\t" << maxv << "\\t";
-    minMaxLoc(sobel_y,&minv,&maxv);
-    std::cout << minv << " " << maxv << "\n";
-    CannyBis(img, dst,lowThreshold, maxThreshold, 3,false,sobel_x,sobel_y);
-    imshow("edges x", sobel_x.mul(50));
-    imshow("edges y", sobel_y.mul(50));
-
-    imshow( window_name, dst );
-}
 
 
