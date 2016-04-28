@@ -39,20 +39,10 @@ public:
         double *yp=new double[tailleSequence],*ym=new double[tailleSequence];
         int rows=img.rows,cols=img.cols;
 
-        double				q=w/a;
-        double				N=sqrt(2/(a*(1+q*q)));
-        double				s=sqrt(2*a);
-        double				k=sqrt((1+q*q)/(5+q*q));
+        // Formule 12 p193
         double				b1=-2*exp(-a)*cosh(w);
         double				a1=-b1-exp(-2*a)-1;
         double				b2=exp(-2*a);
-        double				d=(1-b1+exp(-2*a))/(2*a*exp(-a)*sinh(w)+w*(1-exp(-2*a)));
-        double				c1=a*d;
-        double				c2=w*d;
-        double				a0p=c2;
-        double				a1p=(c1*sinh(w)-c2*cosh(w))*exp(-a);
-        double				a1m=a1p-c2*b1;
-        double				a2m=-c2*b2;
 
         switch(img.depth()){
         case CV_8U :
@@ -68,7 +58,7 @@ public:
                 c1+=cols;
                 for (int i=2;i<rows;i++,c1+=cols)
                     yp[i] = *c1-b1*yp[i-1]-b2*yp[i-2];
-                // Anticausal vertical IIR filter
+                // Formule 27 p194 
                 c1 = (unsigned char*)img.ptr(rows-1)+j;
                 border=*c1;
                 ym[rows-1] =*c1 * (1-b1+b1*b1-b2);
@@ -76,6 +66,7 @@ public:
                 c1-=cols;
                 for (int i=rows-3;i>=0;i--,c1-=cols)
                     ym[i]=*c1-b1*ym[i+1]-b2*ym[i+2];
+                // Formule 25 p193
                 for (int i=0;i<rows;i++,f2+=cols)
                     *f2 = (float)(a1*(ym[i]-yp[i]));
             }
@@ -85,7 +76,7 @@ public:
 		{
 			for (int j = range.start; j<range.end; j++)
 			{
-				// Causal vertical  IIR filter
+                // Formule 26 p194 
 				short *c1 = (short*)img.ptr(0) + j;
 				f2 = ((float*)im1.ptr(0)) + j;
 				double border = *c1;
@@ -94,7 +85,7 @@ public:
 				c1 += cols;
 				for (int i = 2; i<rows; i++, c1 += cols)
 					yp[i] = *c1 - b1*yp[i - 1] - b2*yp[i - 2];
-				// Anticausal vertical IIR filter
+                // Formule 27 p194 
 				c1 = (short*)img.ptr(rows - 1) + j;
 				border = *c1;
 				ym[rows - 1] = *c1 * (1 - b1 + b1*b1 - b2);
@@ -102,6 +93,7 @@ public:
 				c1 -= cols;
 				for (int i = rows - 3; i >= 0; i--, c1 -= cols)
 					ym[i] = *c1 - b1*ym[i + 1] - b2*ym[i + 2];
+                // Formule 25 p193
 				for (int i = 0; i<rows; i++, f2 += cols)
 					*f2 = (float)(a1*(ym[i] - yp[i]));
 			}
@@ -111,7 +103,7 @@ public:
         {
             for (int j=range.start;j<range.end;j++)
             {
-                // Causal vertical  IIR filter
+                // Formule 26 p194 
                 unsigned short *c1 = (unsigned short*)img.ptr(0)+j;
                 f2 = ((float*)im1.ptr(0))+j;
 				double border = *c1;
@@ -120,7 +112,7 @@ public:
 				c1 += cols;
 				for (int i = 2; i<rows; i++, c1 += cols)
 					yp[i] = *c1 - b1*yp[i - 1] - b2*yp[i - 2];
-				// Anticausal vertical IIR filter
+                // Formule 27 p194 
 				c1 = (unsigned short*)img.ptr(rows - 1) + j;
 				border = *c1;
 				ym[rows - 1] = *c1 * (1 - b1 + b1*b1 - b2);
@@ -128,6 +120,7 @@ public:
 				c1 -= cols;
 				for (int i = rows - 3; i >= 0; i--, c1 -= cols)
 					ym[i] = *c1 - b1*ym[i + 1] - b2*ym[i + 2];
+                // Formule 25 p193
 				for (int i = 0; i<rows; i++, f2 += cols)
 					*f2 = (float)(a1*(ym[i] - yp[i]));
 			}
@@ -172,21 +165,21 @@ public:
     {
         if (verbose)
             std::cout << getThreadNum()<<"# :Start from row " << range.start << " to "  << range.end-1<<" ("<<range.end-range.start<<" loops)" << std::endl;
-        float *f1,*f2;
+        float *iy,*iy0;
         int tailleSequence=(img.rows>img.cols)?img.rows:img.cols;
-        double *g1=new double[tailleSequence],*g2=new double[tailleSequence];
+        double *iym=new double[tailleSequence],*iyp=new double[tailleSequence];
         int cols=img.cols;
 
+        // Fomule 7 p193
         double				q=w/a;
-        double				N=sqrt(2/(a*(1+q*q)));
-        double				s=sqrt(2*a);
-        double				k=sqrt((1+q*q)/(5+q*q));
-        double				b1=-2*exp(-a)*cosh(w);
-        double				a1=-b1-exp(-2*a)-1;
-        double				b2=exp(-2*a);
-        double				d=(1-b1+exp(-2*a))/(2*a*exp(-a)*sinh(w)+w*(1-exp(-2*a)));
+        // Formule 13
+        double				d=(1-2*exp(-a)*cosh(w)+exp(-2*a))/(2*a*exp(-a)*sinh(w)+w*(1-exp(-2*a)));
         double				c1=a*d;
         double				c2=w*d;
+        // formule 12
+        double				b1=-2*exp(-a)*cosh(w);
+        double				b2=exp(-2*a);
+        // Formule 14
         double				a0p=c2;
         double				a1p=(c1*sinh(w)-c2*cosh(w))*exp(-a);
         double				a1m=a1p-c2*b1;
@@ -194,37 +187,24 @@ public:
 
         for (int i=range.start;i<range.end;i++)
             {
-            f2 = ((float*)dst.ptr(i));
-            f1 = ((float*)img.ptr(i));
+            iy0 = ((float*)img.ptr(i));
             int j=0;
-            g1[j] = (a5 +a6+b3+b4)* *f1 ;
-            g1[j] = (a5 +a6)* *f1 ;
-            j++;
-            f1++;
-            g1[j] = a5 * f1[0]+a6*f1[j-1]+(b3+b4) * g1[j-1];
-            g1[j] = a5 * f1[0]+a6*f1[j-1]+(b3) * g1[j-1];
-            j++;
-            f1++;
-            for (j=2;j<cols;j++,f1++)
-                g1[j] = a5 * f1[0] + a6 * f1[-1]+b3*g1[j-1]+b4*g1[j-2];
-            f1 = ((float*)img.ptr(0));
-            f1 += i*cols+cols-1;
-            j=cols-1;
-            g2[j] = (a7+a8+b3+b4)* *f1;
-            g2[j] = (a7+a8)* *f1;
-            j--;
-            f1--;
-            g2[j] = (a7+a8) * f1[1]  +(b3+b4) * g2[j+1];
-            g2[j] = (a7+a8) * f1[1]  +(b3) * g2[j+1];
-            j--;
-            f1--;
-            for (j=cols-3;j>=0;j--,f1--)
-                g2[j] = a7*f1[1]+a8*f1[2]+b3*g2[j+1]+b4*g2[j+2];
-            for (j=0;j<cols;j++,f2++)
-                *f2 = (float)(g1[j]+g2[j]);
+            iyp[0] = a0p*iy0[0] ;
+            iyp[1] = a0p*iy0[1] + a1p*iy0[0] - b1*iyp[0];
+            for (j=2;j<cols;j++,iy0++)
+                iyp[j] = a0p*iy0[0] + a1p*iy0[-1] - b1*iyp[j-1] - b2*iyp[j-2];
+            iy0 = ((float*)img.ptr(i))+cols-1;
+            iym[cols-1] = 0;
+            iy0--;
+            iym[cols-2] = a1m*iy0[1]  - b1*iym[cols-1];
+            for (j=cols-3;j>=0;j--,iy0--)
+                iym[j] = a1m*iy0[1] + a2m*iy0[2] - b1*iym[j+1] - b2*iym[j+2];
+            iy = ((float*)dst.ptr(i));
+            for (j=0;j<cols;j++,iy++)
+                *iy = (float)(iym[j]+iyp[j]);
             }
-        delete []g1;
-        delete []g2;
+        delete []iym;
+        delete []iyp;
 
     };
     ParallelGradientPaillouYRows& operator=(const ParallelGradientPaillouYRows &) {

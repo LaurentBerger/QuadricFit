@@ -18,6 +18,8 @@ using namespace std;
 
 UMat GradientDericheY(UMat op, double alphaDerive, double alphaMoyenne);
 UMat GradientDericheX(UMat op, double alphaDerive, double alphaMoyenne);
+UMat GradientPaillouY(UMat op, double alphaDerive, double alphaMoyenne);
+UMat GradientpaillouX(UMat op, double alphaDerive, double alphaMoyenne);
 void CannyBis(InputArray _src, OutputArray _dst,double low_thresh, double high_thresh,	int aperture_size, bool L2gradient, InputOutputArray _dx, InputOutputArray _dy);
 vector<double> AjusteQuadrique(vector<double> xMarche, vector <double> yMarche,vector<double> paramIni);
 
@@ -537,7 +539,7 @@ int main(int argc, char* argv[])
 	double thresh1=15, thresh2=50;
 	Mat dst; 
 	UMat rx = GradientDericheX(m, ad, am);
-	UMat ry = GradientDericheY(m, ad, am);
+	UMat ry = GradientPaillouY(m, ad, am);
     UMat dxMax,dyMax;
     if (rx.channels() > 1)
     {
